@@ -16,7 +16,7 @@ var transport = nodemailer.createTransport(
 const cheackYahoo = async (code, userEmail) => {
   try {
     let info = await transport.sendMail({
-      from: "wepsond.com",
+      from: "hossamalsankary@gmail.com",
       to: userEmail,
       subject: "Hello ✔",
       text: `Your verification Is ${code}`,
@@ -65,7 +65,7 @@ lineReader.on("line", (line) => {
   setTimeout(() => {
     cheackYahoo(11, line);
     lineReader.resume();
-  }, 5000);
+  }, 10000);
   console.log(line);
 });
 // rl.on("line", function (line) {
