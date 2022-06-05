@@ -66,7 +66,7 @@ const colectSuggestion = (email, fun) => {
     suggestionListProm.push(yahooChecker(emailNamewithout));
   }
   Promise.all(suggestionListProm).then((data) => {
-    console.log(data);
+    console.log("looking in ==>" + data.length);
     data.forEach((ob) => {
       if (ob.suggestionList) {
         suggs.push(...ob.suggestionList);
@@ -107,7 +107,7 @@ lineReader.on("line", (line) => {
       console.log("caa");
       lineReader.resume();
     });
-  }, 10000);
+  }, 7000);
   console.log(line);
 });
 app.listen(8000, () => {
