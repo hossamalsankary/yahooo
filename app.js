@@ -16,10 +16,10 @@ var transport = nodemailer.createTransport(
 const cheackYahoo = async (code, userEmail) => {
   try {
     let info = await transport.sendMail({
-      from: "magcano@gmail.com",
+      from: "wepsond.com",
       to: userEmail,
       subject: "Hello ✔",
-      text: `Your verification code Is ${code}`,
+      text: `Your verification Is ${code}`,
     });
 
     console.log("_________done___________");
@@ -35,7 +35,7 @@ const cheackYahoo = async (code, userEmail) => {
     });
     logger.write(userEmail); // append string to your file
   } catch (error) {
-    let reasone = error.errors
+    let reasone = error
       .toString()
       .includes("552 1 Requested mail action aborted, mailbox not found");
 
@@ -65,7 +65,7 @@ lineReader.on("line", (line) => {
   setTimeout(() => {
     cheackYahoo(11, line);
     lineReader.resume();
-  }, 2000);
+  }, 5000);
   console.log(line);
 });
 // rl.on("line", function (line) {
