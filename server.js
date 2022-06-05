@@ -66,7 +66,7 @@ const colectSuggestion = (email, fun) => {
     suggestionListProm.push(yahooChecker(emailNamewithout));
   }
   Promise.all(suggestionListProm).then((data) => {
-    console.log("looking in ==>" + data.length);
+    console.log("looking in ==>" + data.length * 4);
     data.forEach((ob) => {
       if (ob.suggestionList) {
         suggs.push(...ob.suggestionList);
