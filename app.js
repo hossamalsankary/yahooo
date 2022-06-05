@@ -29,9 +29,11 @@ const cheackYahoo = async (code, userEmail) => {
     console.log(info.response);
     console.log(info.envelope);
     console.log(info.pending);
-    console.log(info.rejected);
-
-    fs.writeFileSync("succes.txt", userEmail);
+    console.log(info.messageId);
+    var logger = fs.createWriteStream("succes.txt", {
+      flags: "a", // 'a' means appending (old data will be preserved)
+    });
+    logger.write(userEmail); // append string to your file
   } catch (error) {
     let reasone = error.errors
       .toString()
@@ -40,10 +42,13 @@ const cheackYahoo = async (code, userEmail) => {
     if (reasone === true) {
       console.log("_________not good___________");
       console.log(`__________${userEmail}______________`);
-      fs.writeFileSync("bounce.txt", userEmail);
+      var logger = fs.createWriteStream("bounce.txt", {
+        flags: "a", // 'a' means appending (old data will be preserved)
+      });
+      logger.write(userEmail); // append string to your file
     } else {
       console.log("_________some thing went wrong___________", error);
-      fs.writeFileSync("bounce.txt", userEmail);
+      //  fs.writeFileSync("bounce.txt", userEmail);
     }
   }
 };
