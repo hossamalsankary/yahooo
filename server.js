@@ -4,11 +4,16 @@ import fs from "fs";
 import readline from "readline";
 import stream from "stream";
 import { Headers } from "node-fetch";
+import { error } from "console";
+import http from "node:http";
+import https from "node:https";
+import cron from "node-cron";
 const app = express();
 
 app.get("/", (req, res) => {
   res.send("Hello World!");
 });
+
 var myHeaders = new Headers();
 myHeaders.append("Accept", " */*");
 myHeaders.append("Accept-Encoding", "gzip, deflate, br");
@@ -35,11 +40,30 @@ myHeaders.append("X-Requested-With", "XMLHttpRequest");
 
 var file = "<file contents here>";
 
+const httpAgent = new http.Agent({
+  keepAlive: true,
+});
+const httpsAgent = new https.Agent({
+  keepAlive: true,
+});
+
 var requestOptions = {
   method: "GET",
+  agent: function (_parsedURL) {
+    if (_parsedURL.protocol == "http:") {
+      return httpAgent;
+    } else {
+      return httpsAgent;
+    }
+  },
+
   headers: myHeaders,
+
   // redirect: "follow",
 };
+let limit = 140;
+
+let speed = 300;
 
 const yahooChecker = async (email) => {
   return new Promise(async (resolve, reject) => {
@@ -56,40 +80,62 @@ const yahooChecker = async (email) => {
 };
 
 const colectSuggestion = (email, fun) => {
+  if (limit <= 100) {
+    limit = 100;
+  }
   let suggestionListProm = [];
 
   let emailName = email.toString().substring(0, email.indexOf("@"));
   let emailNamewithout = email.toString().substring(0, email.indexOf("@") - 2);
 
   let suggs = [];
-  for (let index = 0; index < 200; index++) {
+  for (let index = 0; index < limit; index++) {
     suggestionListProm.push(yahooChecker(emailNamewithout));
   }
-  Promise.all(suggestionListProm).then((data) => {
-    data.forEach((ob) => {
-      if (ob.suggestionList) {
-        suggs.push(...ob.suggestionList);
+  Promise.all(suggestionListProm)
+    .then((data) => {
+      suggestionListProm = [];
+      data.forEach((ob) => {
+        if (ob.suggestionList) {
+          suggs.push(...ob.suggestionList);
+        }
+      });
+
+      //console.log(suggs);
+      console.log("looking in ==>" + suggs.length);
+
+      if (suggs.includes(emailName)) {
+        var logger = fs.createWriteStream("bounce.txt", {
+          flags: "a", // 'a' means appending (old data will be preserved)
+        });
+        logger.write(`${emailName}@yahoo.com \n`);
+        console.log("bounce");
+        fun();
+      } else {
+        var logger = fs.createWriteStream("succes.txt", {
+          flags: "a", // 'a' means appending (old data will be preserved)
+        });
+        logger.write(`${emailName}@yahoo.com \n`);
+        console.log("not bounce");
+
+        fun();
+      }
+    })
+    .catch((error) => {
+      console.log(error);
+      if (error.toString().includes("socket hang up")) {
+        limit = limit - 1;
+        var logger = fs.createWriteStream("bounce.txt", {
+          flags: "a", // 'a' means appending (old data will be preserved)
+        });
+        logger.write(`${emailName}@yahoo.com \n`);
+        console.log("bounce");
+        lineReader.resume();
+        // colectSuggestion(email, () => {
+        //   console.log("socket hang up", "limit", limit);
+        // });
       }
     });
-    //console.log(suggs);
-    console.log("looking in ==>" + suggs.length);
-
-    if (suggs.includes(emailName)) {
-      var logger = fs.createWriteStream("bounce.txt", {
-        flags: "a", // 'a' means appending (old data will be preserved)
-      });
-      logger.write(`${emailName}@yahoo.com \n`);
-      console.log("bounce");
-      fun();
-    } else {
-      var logger = fs.createWriteStream("succes.txt", {
-        flags: "a", // 'a' means appending (old data will be preserved)
-      });
-      logger.write(`${emailName}@yahoo.com \n`);
-      console.log("not bounce");
-      fun();
-    }
-  });
 };
 
 //kelly_soccer35
@@ -104,12 +150,22 @@ lineReader.on("line", (line) => {
   // Resume 5ms later
   setTimeout(() => {
     colectSuggestion(line, () => {
-      console.log("caa");
+      console.log("----------------------------------------------------");
       lineReader.resume();
     });
-  }, 7000);
+  }, speed);
   console.log(line);
 });
+
+cron.schedule("5 * * * *", function () {
+  if (speed == 500) {
+    speed = 10000;
+  } else {
+    speed = 500;
+  }
+  console.log("running a task every minute");
+});
+
 app.listen(8000, () => {
   console.log("Example app listening on port port!");
 });
