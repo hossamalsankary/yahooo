@@ -61,9 +61,9 @@ var requestOptions = {
 
   // redirect: "follow",
 };
-let limit = 140;
-
-let speed = 300;
+let limit = 40;
+let linenum = 0;
+let speed = 200;
 
 const yahooChecker = async (email) => {
   return new Promise(async (resolve, reject) => {
@@ -72,17 +72,22 @@ const yahooChecker = async (email) => {
         `https://login.yahoo.com/account/module/create/suggestions?acrumb=qMzJuwtK&yid=${email}`,
         requestOptions
       );
+
       resolve(response.json());
     } catch (error) {
-      reject(error);
+      if (
+        error.toString().includes("Unexpected token r in JSON at position 0")
+      ) {
+        error = "sme";
+        resolve(error);
+      } else {
+        reject(error);
+      }
     }
   });
 };
 
 const colectSuggestion = (email, fun) => {
-  if (limit <= 100) {
-    limit = 100;
-  }
   let suggestionListProm = [];
 
   let emailName = email.toString().substring(0, email.indexOf("@"));
@@ -123,18 +128,18 @@ const colectSuggestion = (email, fun) => {
     })
     .catch((error) => {
       console.log(error);
-      if (error.toString().includes("socket hang up")) {
-        limit = limit - 1;
-        var logger = fs.createWriteStream("bounce.txt", {
-          flags: "a", // 'a' means appending (old data will be preserved)
-        });
-        logger.write(`${emailName}@yahoo.com \n`);
-        console.log("bounce");
-        lineReader.resume();
-        // colectSuggestion(email, () => {
-        //   console.log("socket hang up", "limit", limit);
-        // });
-      }
+      speed = speed + 10;
+      limit = limit - 3;
+      var logger = fs.createWriteStream("bounce.txt", {
+        flags: "a", // 'a' means appending (old data will be preserved)
+      });
+      logger.write(`${emailName}@yahoo.com \n`);
+      console.log("bounce");
+      lineReader.resume();
+      // colectSuggestion(email, () => {
+      //   console.log("socket hang up", "limit", limit);
+      // });
+      console.log("-----------------I will Pass------------------");
     });
 };
 
@@ -150,20 +155,23 @@ lineReader.on("line", (line) => {
   // Resume 5ms later
   setTimeout(() => {
     colectSuggestion(line, () => {
-      console.log("----------------------------------------------------");
+      console.log(
+        "----------------------------------------------------",
+        linenum,
+        "--------------------------------------------------"
+      );
       lineReader.resume();
     });
+
+    if (speed <= 300) {
+      speed = 300;
+    }
+    if (limit <= 40) {
+      limit = 40;
+    }
   }, speed);
   console.log(line);
-});
-
-cron.schedule("5 * * * *", function () {
-  if (speed == 500) {
-    speed = 10000;
-  } else {
-    speed = 500;
-  }
-  console.log("running a task every minute");
+  linenum++;
 });
 
 app.listen(8000, () => {
