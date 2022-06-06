@@ -41,8 +41,6 @@ var requestOptions = {
   // redirect: "follow",
 };
 
-let suggestionListProm = [];
-
 const yahooChecker = async (email) => {
   return new Promise(async (resolve, reject) => {
     try {
@@ -58,21 +56,23 @@ const yahooChecker = async (email) => {
 };
 
 const colectSuggestion = (email, fun) => {
+  let suggestionListProm = [];
+
   let emailName = email.toString().substring(0, email.indexOf("@"));
   let emailNamewithout = email.toString().substring(0, email.indexOf("@") - 2);
 
   let suggs = [];
-  for (let index = 0; index < 10; index++) {
+  for (let index = 0; index < 200; index++) {
     suggestionListProm.push(yahooChecker(emailNamewithout));
   }
   Promise.all(suggestionListProm).then((data) => {
-    console.log("looking in ==>" + data.length * 4);
     data.forEach((ob) => {
       if (ob.suggestionList) {
         suggs.push(...ob.suggestionList);
       }
     });
     //console.log(suggs);
+    console.log("looking in ==>" + suggs.length);
 
     if (suggs.includes(emailName)) {
       var logger = fs.createWriteStream("bounce.txt", {
