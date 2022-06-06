@@ -7,7 +7,8 @@ import { Headers } from "node-fetch";
 import { error } from "console";
 import http from "node:http";
 import https from "node:https";
-import cron from "node-cron";
+//import cron from "node-cron";
+import validate from "deep-email-validator";
 const app = express();
 
 app.get("/", (req, res) => {
@@ -61,9 +62,9 @@ var requestOptions = {
 
   // redirect: "follow",
 };
-let limit = 42;
+let limit = 40;
 let linenum = 0;
-let speed = 150;
+let speed = 400;
 
 const yahooChecker = async (email) => {
   return new Promise(async (resolve, reject) => {
@@ -75,86 +76,102 @@ const yahooChecker = async (email) => {
 
       resolve(response.json());
     } catch (error) {
-      if (
-        error.toString().includes("Unexpected token r in JSON at position 0")
-      ) {
-        error = "sme";
-        resolve(error);
-      } else {
-        reject(error);
-      }
+      reject(error);
     }
   });
 };
+const validators = async (email) => {
+  let res = await validate.validate(email);
 
-const colectSuggestion = (email, fun) => {
+  if (
+    res.validators.regex.valid == true &&
+    res.validators.typo.valid == true &&
+    res.validators.disposable.valid == true &&
+    res.validators.mx.valid == true
+  ) {
+    console.log("Validators Clean");
+    return true;
+  } else {
+    console.log(email, "------", res);
+  }
+};
+
+const colectSuggestion = async (emailFromFile, fun) => {
+  let email = emailFromFile.toString().trimEnd().trimStart();
   let suggestionListProm = [];
 
   let emailName = email.toString().substring(0, email.indexOf("@"));
   let emailNamewithout = email.toString().substring(0, email.indexOf("@") - 2);
 
-  let suggs = [];
-  for (let index = 0; index < limit; index++) {
-    suggestionListProm.push(yahooChecker(emailNamewithout));
-  }
-  Promise.all(suggestionListProm)
-    .then((data) => {
-      suggestionListProm = [];
-      data.forEach((ob) => {
-        if (ob.suggestionList) {
-          suggs.push(...ob.suggestionList);
+  if ((await validators(email)) === true) {
+    let suggs = [];
+    for (let index = 0; index < limit; index++) {
+      suggestionListProm.push(yahooChecker(emailNamewithout));
+    }
+    Promise.all(suggestionListProm)
+      .then((data) => {
+        suggestionListProm = [];
+        data.forEach((ob) => {
+          if (ob.suggestionList) {
+            suggs.push(...ob.suggestionList);
+          }
+        });
+
+        //console.log(suggs);
+        console.log("looking in ==>" + suggs.length);
+
+        if (suggs.includes(emailName)) {
+          var logger = fs.createWriteStream("bounce.txt", {
+            flags: "a", // 'a' means appending (old data will be preserved)
+          });
+          logger.write(`${emailName}@yahoo.com \n`);
+          console.log("bounce");
+          fun();
+        } else {
+          var logger = fs.createWriteStream("succes.txt", {
+            flags: "a", // 'a' means appending (old data will be preserved)
+          });
+          logger.write(`${emailName}@yahoo.com \n`);
+          console.log("not bounce");
+          let latscar = String(emailName).slice(String(emailName).length - 2);
+
+          if (!isNaN(latscar)) {
+            let logger = fs.createWriteStream("clean.txt", {
+              flags: "a", // 'a' means appending (old data will be preserved)
+            });
+            logger.write(`${emailName}@yahoo.com \n`);
+          }
+
+          fun();
         }
+      })
+      .catch((error) => {
+        console.log(error);
+        lineReader.pause();
+        speed = speed + 10;
+        limit = limit - 3;
+
+        setTimeout(() => {
+          colectSuggestion(email, () => {
+            console.log(
+              "-----------------err-----------------------------------",
+              linenum,
+              "--------------------------------------------------"
+            );
+            lineReader.resume();
+          });
+        }, 20000);
+
+        console.log("-----------------I will Pass------------------");
       });
-
-      //console.log(suggs);
-      console.log("looking in ==>" + suggs.length);
-
-      if (suggs.includes(emailName)) {
-        var logger = fs.createWriteStream("bounce.txt", {
-          flags: "a", // 'a' means appending (old data will be preserved)
-        });
-        logger.write(`${emailName}@yahoo.com \n`);
-        console.log("bounce");
-        fun();
-      } else {
-        var logger = fs.createWriteStream("succes.txt", {
-          flags: "a", // 'a' means appending (old data will be preserved)
-        });
-        logger.write(`${emailName}@yahoo.com \n`);
-        console.log("not bounce");
-
-        fun();
-      }
-    })
-    .catch((error) => {
-      console.log(error);
-      lineReader.pause();
-     
-
-      setTimeout(() => {
-        colectSuggestion(email, () => {
-          console.log(
-            "-----------------err-----------------------------------",
-            linenum,
-            "--------------------------------------------------"
-          );
-          lineReader.resume();
-        });
-      }, 20000);
-
-      colectSuggestion(line, () => {
-        console.log(
-          "----------------------------------------------------",
-          linenum,
-          "--------------------------------------------------"
-        );
-      });
-
-      // colectSuggestion(email, () => {
-      //   console.log("socket hang up", "limit", limit);
-      // });
-      console.log("-----------------I will Pass------------------");
+  } else {
+    var logger = fs.createWriteStream("bounce.txt", {
+      flags: "a", // 'a' means appending (old data will be preserved)
     });
+    logger.write(`${emailName}@yahoo.com \n`);
+    console.log("bounce from Vilidetor");
+    fun();
+  }
 };
 
 //kelly_soccer35
@@ -164,32 +181,30 @@ var lineReader = readline.createInterface({
   }),
 });
 
+//console.log(res);
 lineReader.on("line", (line) => {
   lineReader.pause(); // pause reader
   // Resume 5ms later
-  setTimeout(() => {
-    colectSuggestion(line, () => {
-      console.log(
-        "----------------------------------------------------",
-        linenum,
-        "--------------------------------------------------"
-      );
-      lineReader.resume();
-    });
+  colectSuggestion(line.toString(), () => {
+    console.log(
+      "----------------------------------------------------",
+      linenum,
+      "--------------------------------------------------"
+    );
+    lineReader.resume();
+  });
 
-    if (speed <= 300) {
-      speed = 300;
-    }
-    if (limit <= 40) {
-      limit = 40;
-    }
-  }, speed);
+  if (limit <= 40) {
+    limit = 40;
+  }
+
   console.log(line);
   linenum++;
 });
 
 app.listen(8000, () => {
   console.log("Example app listening on port port!");
+  console.log("armstronglex712@yahoo.com");
 });
 
 //Run app, then load http://localhost:port in a browser to see the output.
