@@ -61,9 +61,9 @@ var requestOptions = {
 
   // redirect: "follow",
 };
-let limit = 40;
+let limit = 42;
 let linenum = 0;
-let speed = 200;
+let speed = 150;
 
 const yahooChecker = async (email) => {
   return new Promise(async (resolve, reject) => {
@@ -128,14 +128,28 @@ const colectSuggestion = (email, fun) => {
     })
     .catch((error) => {
       console.log(error);
-      speed = speed + 10;
-      limit = limit - 3;
-      var logger = fs.createWriteStream("bounce.txt", {
-        flags: "a", // 'a' means appending (old data will be preserved)
+      lineReader.pause();
+     
+
+      setTimeout(() => {
+        colectSuggestion(email, () => {
+          console.log(
+            "-----------------err-----------------------------------",
+            linenum,
+            "--------------------------------------------------"
+          );
+          lineReader.resume();
+        });
+      }, 20000);
+
+      colectSuggestion(line, () => {
+        console.log(
+          "----------------------------------------------------",
+          linenum,
+          "--------------------------------------------------"
+        );
       });
-      logger.write(`${emailName}@yahoo.com \n`);
-      console.log("bounce");
-      lineReader.resume();
+
       // colectSuggestion(email, () => {
       //   console.log("socket hang up", "limit", limit);
       // });
